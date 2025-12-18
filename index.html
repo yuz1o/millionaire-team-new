@@ -3,99 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Study Gen | 問題作成ツール</title>
+    <title>AI Study Gen v3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100-vh; }
+        .tab-active { background-color: #4f46e5; color: white; }
     </style>
 </head>
-<body class="py-10 px-4">
-    <div class="max-w-3xl mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-indigo-700 flex justify-center items-center gap-2">
-                <i data-lucide="brain-circuit"></i> AI Study Gen
-            </h1>
-            <p class="text-slate-500 mt-2">大学の講義PDFからテスト問題を自動生成</p>
-        </header>
-
-        <div class="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-slate-200">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <input type="text" id="subject" placeholder="教科名" class="px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
-                <select id="type" class="px-4 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="一問一答">一問一答</option>
-                    <option value="記述式">記述式</option>
-                </select>
-                <div class="flex items-center gap-2">
-                    <span class="text-sm text-slate-500">数:</span>
-                    <input type="number" id="count" value="5" min="1" max="10" class="w-full px-4 py-2 border rounded-lg">
+<body class="py-12 px-4">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 border border-white/50 backdrop-blur-sm">
+            <header class="text-center mb-10">
+                <div class="inline-block p-3 bg-indigo-100 rounded-2xl mb-4">
+                    <i data-lucide="zap" class="text-indigo-600 w-8 h-8"></i>
                 </div>
-            </div>
-            
-            <input type="file" id="pdfFile" accept=".pdf" class="block w-full text-sm text-slate-500 mb-6 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
+                <h1 class="text-3xl font-black text-slate-800 tracking-tight">AI Study Gen <span class="text-indigo-600">v3</span></h1>
+                <p class="text-slate-500 text-sm">Powered by Gemini 3 Flash</p>
+            </header>
 
-            <button onclick="generate()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2">
-                <i data-lucide="sparkles"></i> 問題を生成する
+            <div class="mb-8">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Subject</label>
+                <input type="text" id="subject" placeholder="例: 心理学、日本史..." class="w-full px-5 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 text-slate-700 transition">
+            </div>
+
+            <div class="mb-8">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Question Type</label>
+                <div class="flex bg-slate-100 p-1 rounded-2xl" id="typeContainer">
+                    <button onclick="setType('一問一答', this)" class="flex-1 py-2 text-sm font-semibold rounded-xl transition tab-active">一問一答</button>
+                    <button onclick="setType('記述式', this)" class="flex-1 py-2 text-sm font-semibold rounded-xl transition text-slate-500">記述式</button>
+                    <button onclick="setType('穴埋め', this)" class="flex-1 py-2 text-sm font-semibold rounded-xl transition text-slate-500">穴埋め</button>
+                </div>
+                <input type="hidden" id="selectedType" value="一問一答">
+            </div>
+
+            <div class="mb-10">
+                <div class="flex justify-between items-end mb-3">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Question Count</label>
+                    <span id="countVal" class="text-2xl font-black text-indigo-600">5</span>
+                </div>
+                <input type="range" id="count" min="1" max="15" value="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" oninput="document.getElementById('countVal').innerText=this.value">
+            </div>
+
+            <div class="mb-10 border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center hover:border-indigo-400 transition cursor-pointer relative bg-slate-50/50">
+                <input type="file" id="pdfFile" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer">
+                <i data-lucide="file-up" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
+                <p id="fileName" class="text-sm text-slate-500 font-medium">講義資料(PDF)をドロップ</p>
+            </div>
+
+            <button onclick="generate()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-95 flex justify-center items-center gap-2 text-lg">
+                <i data-lucide="sparkles" class="w-6 h-6"></i>
+                問題を生成する
             </button>
         </div>
 
-        <div id="loading" class="hidden text-center py-10">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p class="text-slate-600 font-medium">GeminiがPDFを分析して問題を考えています...</p>
+        <div id="loading" class="hidden mt-12 text-center animate-pulse">
+            <p class="text-indigo-600 font-bold text-lg">Gemini 3 が思考中...</p>
         </div>
 
-        <div id="resultList" class="space-y-4"></div>
+        <div id="resultList" class="mt-12 space-y-6"></div>
     </div>
 
     <script>
         lucide.createIcons();
+
+        function setType(type, btn) {
+            document.getElementById('selectedType').value = type;
+            const buttons = document.querySelectorAll('#typeContainer button');
+            buttons.forEach(b => {
+                b.classList.remove('tab-active', 'text-white');
+                b.classList.add('text-slate-500');
+            });
+            btn.classList.add('tab-active');
+            btn.classList.remove('text-slate-500');
+        }
+
+        document.getElementById('pdfFile').onchange = function() {
+            if(this.files[0]) document.getElementById('fileName').innerText = this.files[0].name;
+        };
+
         async function generate() {
             const fileInput = document.getElementById('pdfFile');
             const resultList = document.getElementById('resultList');
             const loading = document.getElementById('loading');
             const genBtn = document.getElementById('genBtn');
 
-            if (!fileInput.files[0]) return alert("PDFを選んでください");
+            if (!fileInput.files[0]) return alert("PDFを選択してください");
 
             loading.classList.remove('hidden');
             resultList.innerHTML = '';
             genBtn.disabled = true;
+            genBtn.classList.add('opacity-50');
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('subject', document.getElementById('subject').value);
-            formData.append('type', document.getElementById('type').value);
+            formData.append('type', document.getElementById('selectedType').value);
             formData.append('count', document.getElementById('count').value);
 
             try {
-                // RenderのURLに修正
                 const response = await fetch('https://millionaire-team-new.onrender.com/generate-questions', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await response.json();
-                if (data.error) throw new Error(data.error);
-
+                
                 data.forEach((q, i) => {
                     const card = document.createElement('div');
-                    card.className = "bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-500";
+                    card.className = "bg-white p-8 rounded-3xl shadow-lg border border-slate-100 transform transition hover:scale-[1.02]";
                     card.innerHTML = `
-                        <p class="font-bold text-indigo-600 mb-2">Q${i+1}. ${document.getElementById('type').value}</p>
-                        <p class="text-slate-800 text-lg mb-4">${q.question}</p>
-                        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-sm font-bold text-slate-400 hover:text-indigo-600 underline">解答を表示</button>
-                        <div class="hidden mt-4 p-4 bg-slate-50 rounded-lg">
-                            <p class="font-bold text-slate-700">【答え】 ${q.answer}</p>
-                            <p class="text-sm text-slate-500 mt-2">${q.explanation}</p>
+                        <div class="flex gap-4 items-start">
+                            <span class="bg-indigo-50 text-indigo-600 font-black px-3 py-1 rounded-xl text-sm">Q${i+1}</span>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-slate-800 mb-6 leading-relaxed">${q.question}</h3>
+                                <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="bg-slate-800 text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-slate-700 transition">解答を確認</button>
+                                <div class="hidden mt-6 p-6 bg-indigo-50 rounded-2xl border-l-8 border-indigo-400 animate-in slide-in-from-top-4 duration-300">
+                                    <p class="font-bold text-indigo-900 mb-2">A: ${q.answer}</p>
+                                    <p class="text-sm text-indigo-700/80 leading-relaxed">${q.explanation}</p>
+                                </div>
+                            </div>
                         </div>
                     `;
                     resultList.appendChild(card);
                 });
             } catch (err) {
-                alert("エラー: " + err.message);
+                alert("生成エラー: " + err.message);
             } finally {
                 loading.classList.add('hidden');
                 genBtn.disabled = false;
+                genBtn.classList.remove('opacity-50');
             }
         }
     </script>

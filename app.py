@@ -1,6 +1,7 @@
 import os
 import io
 import time
+import json # 追加
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pypdf import PdfReader
@@ -45,30 +46,35 @@ def generate_questions():
     if not pdf_text:
         return jsonify({"error": "PDFから文字を読み取れませんでした"}), 400
 
+    # AIへの指示（プロンプト）をより厳密に
     prompt = f"""
-    あなたは教育工学の専門家です。提供された資料（教科: {subject}）を詳細に分析し、
-    学習効果が高いとされる「{q_type}」形式の問題を{q_count}問作成してください。
+    あなたは教育のスペシャリストです。
+    提供された【講義資料】に基づいて、学習効果の高い「{q_type}」を{q_count}問作成してください。
     
-    【出力形式】必ず以下のJSON配列のみで回答してください。
+    必ず以下のJSON配列フォーマットのみで出力してください。他の説明文は一切不要です。
     [
-      {{ "id": 1, "question": "問題文", "answer": "解答", "explanation": "詳しい解説" }}
+      {{ "id": 1, "question": "問題文", "answer": "解答", "explanation": "解説" }}
     ]
-    
+
     【講義資料】
     {pdf_text[:12000]}
     """
     
     try:
-        # 最新の Gemini 3 モデルを使用
+        # 最新の Gemini 3 Flash モデルを使用
         response = client.models.generate_content(
             model="gemini-3-flash-preview", 
             contents=prompt,
             config={'response_mime_type': 'application/json'}
         )
-        return response.text 
+        
+        # AIの回答が正しいJSONかチェック
+        result_json = json.loads(response.text)
+        return jsonify(result_json) # JSONとして返す
+
     except Exception as e:
         print(f"APIエラー: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"AI生成エラー: {str(e)}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

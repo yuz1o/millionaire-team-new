@@ -6,6 +6,16 @@
     <title>AI Study Gen v3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            chtml: { displayAlign: 'left' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background: #f1f5f9; min-height: 100vh; }
@@ -25,7 +35,7 @@
 
             <div class="mb-8">
                 <label class="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Subject Name</label>
-                <input type="text" id="subject" placeholder="例: マクロ経済学" class="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-semibold transition">
+                <input type="text" id="subject" placeholder="例: 数学II" class="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-semibold transition">
             </div>
 
             <div class="mb-8">
@@ -107,23 +117,20 @@
             formData.append('count', document.getElementById('count').value);
 
             try {
-                // URLは自身のRenderのURLに書き換えてください
-                const response = await fetch('https://millionaire-team-new.onrender.com/generate-questions', {
+                // RenderのURLに合わせて調整してください
+                const response = await fetch('/generate-questions', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await response.json();
                 
-                // エラーチェック（ここが重要！）
                 if (data.error) {
                     alert("エラー: " + data.error);
                     return;
                 }
                 
-                // data が配列でない場合のエラー回避
                 if (!Array.isArray(data)) {
-                    console.error("想定外のデータ形式:", data);
-                    alert("エラー: AIからの回答を読み取れませんでした。もう一度試してください。");
+                    alert("エラー: AIからの回答を読み取れませんでした。");
                     return;
                 }
 
@@ -148,6 +155,12 @@
                     `;
                     resultList.appendChild(card);
                 });
+
+                // 数式のレンダリングを実行
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+
             } catch (err) {
                 alert("通信エラーが発生しました: " + err.message);
             } finally {

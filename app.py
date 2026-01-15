@@ -1,7 +1,7 @@
 import os
 import io
 import time
-import json # 追加
+import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pypdf import PdfReader
@@ -46,11 +46,16 @@ def generate_questions():
     if not pdf_text:
         return jsonify({"error": "PDFから文字を読み取れませんでした"}), 400
 
-    # AIへの指示（プロンプト）をより厳密に
+    # 数式表示用の指示を追加したプロンプト
     prompt = f"""
     あなたは教育のスペシャリストです。
     提供された【講義資料】に基づいて、学習効果の高い「{q_type}」を{q_count}問作成してください。
     
+    【重要：数式の書き方】
+    数学的な記号や式が登場する場合は、必ずLaTeX形式を使用してください。
+    - 文中の数式は '$...$' で囲んでください（例: $E=mc^2$）
+    - 独立した行の数式は '$$...$$' で囲んでください。
+
     必ず以下のJSON配列フォーマットのみで出力してください。他の説明文は一切不要です。
     [
       {{ "id": 1, "question": "問題文", "answer": "解答", "explanation": "解説" }}
@@ -61,16 +66,15 @@ def generate_questions():
     """
     
     try:
-        # 最新の Gemini 3 Flash モデルを使用
+        # Gemini 3 Flash モデルを使用
         response = client.models.generate_content(
             model="gemini-3-flash-preview", 
             contents=prompt,
             config={'response_mime_type': 'application/json'}
         )
         
-        # AIの回答が正しいJSONかチェック
         result_json = json.loads(response.text)
-        return jsonify(result_json) # JSONとして返す
+        return jsonify(result_json)
 
     except Exception as e:
         print(f"APIエラー: {e}")

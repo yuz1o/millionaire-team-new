@@ -46,17 +46,18 @@ def generate_questions():
     if not pdf_text:
         return jsonify({"error": "PDFから文字を読み取れませんでした"}), 400
 
-    # 数式表示用の指示を追加したプロンプト
+    # 【重要】バックスラッシュを二重にするよう指示を追加
     prompt = f"""
     あなたは教育のスペシャリストです。
     提供された【講義資料】に基づいて、学習効果の高い「{q_type}」を{q_count}問作成してください。
     
     【重要：数式の書き方】
     数学的な記号や式が登場する場合は、必ずLaTeX形式を使用してください。
+    JSON形式で出力するため、LaTeXのバックスラッシュは必ず二重（例：\\\\frac , \\\\sqrt , \\\\theta）にして出力してください。
     - 文中の数式は '$...$' で囲んでください（例: $E=mc^2$）
     - 独立した行の数式は '$$...$$' で囲んでください。
 
-    必ず以下のJSON配列フォーマットのみで出力してください。他の説明文は一切不要です。
+    必ず以下のJSON配列フォーマットのみで出力してください。
     [
       {{ "id": 1, "question": "問題文", "answer": "解答", "explanation": "解説" }}
     ]
@@ -73,11 +74,15 @@ def generate_questions():
             config={'response_mime_type': 'application/json'}
         )
         
+        # もしGeminiがバックスラッシュをエスケープし忘れた場合でもエラーにならないように
+        # strict=False を付けるか、事前に置換を検討しますが、まずは指示を優先します
         result_json = json.loads(response.text)
         return jsonify(result_json)
 
     except Exception as e:
         print(f"APIエラー: {e}")
+        # デバッグ用に生のテキストをログに出す
+        print(f"RAW RESPONSE: {response.text}")
         return jsonify({"error": f"AI生成エラー: {str(e)}"}), 500
 
 if __name__ == '__main__':
